@@ -62,6 +62,7 @@ function initIntro() {
   const spacing = 1.5;
   let loadedCount = 0;
   let introEnded = false;
+  let groupSize = null; // ancho/alto reales del grupo a escala 1, medidos una vez cargado todo
 
   LETTER_FILES.forEach((file, i) => {
     loader.load(
@@ -88,7 +89,14 @@ function initIntro() {
 
         group.add(model);
         loadedCount++;
-        if (loadedCount === LETTER_FILES.length) startHold();
+        if (loadedCount === LETTER_FILES.length) {
+          const fullBox = new THREE.Box3().setFromObject(group);
+          const fullSize = new THREE.Vector3();
+          fullBox.getSize(fullSize);
+          groupSize = fullSize;
+          fitGroupToViewport();
+          startHold();
+        }
       },
       undefined,
       (err) => {
@@ -98,6 +106,22 @@ function initIntro() {
       }
     );
   });
+
+  // Encoge el conjunto completo (sin deformar, escala uniforme) para que
+  // ASCSELO siempre quepa dentro del ancho visible, sobre todo en celulares
+  // en vertical donde el campo de visión horizontal es mucho más angosto.
+  function fitGroupToViewport() {
+    if (!groupSize) return;
+    const vFov = (camera.fov * Math.PI) / 180;
+    const visibleHeight = 2 * Math.tan(vFov / 2) * camera.position.z;
+    const visibleWidth = visibleHeight * camera.aspect;
+
+    const scaleForWidth = (visibleWidth * 0.82) / groupSize.x;
+    const scaleForHeight = (visibleHeight * 0.7) / groupSize.y;
+    const fitScale = Math.min(1, scaleForWidth, scaleForHeight);
+
+    group.scale.setScalar(fitScale);
+  }
 
   function startHold() {
     // Las letras ya están todas colocadas y quietas: esperar 10s exactos.
@@ -119,6 +143,7 @@ function initIntro() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+    fitGroupToViewport();
   }
   window.addEventListener('resize', onResize);
 
