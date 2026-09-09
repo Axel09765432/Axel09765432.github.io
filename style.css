@@ -104,7 +104,8 @@ button{ font-family:inherit; background:none; border:none; color:inherit; cursor
 .header-inner{
   max-width:var(--max-w); margin:0 auto;
   display:flex; align-items:center; justify-content:space-between;
-  padding:18px var(--gap);
+  flex-wrap:wrap; row-gap:10px;
+  padding:12px var(--gap);
 }
 .logo{
   font-family:var(--font-display);
@@ -114,11 +115,18 @@ button{ font-family:inherit; background:none; border:none; color:inherit; cursor
 }
 .logo-3d{
   display:block;
-  width:250px;
-  height:78px;
+  width:750px;
+  height:234px;
 }
 #logo-canvas{ width:100%; height:100%; display:block; cursor:grab; }
 #logo-canvas:active{ cursor:grabbing; }
+
+@media (max-width: 1400px){
+  .logo-3d{ width:520px; height:163px; }
+}
+@media (max-width: 900px){
+  .logo-3d{ width:380px; height:119px; }
+}
 .main-nav{ display:flex; gap:38px; }
 .main-nav a{
   font-size:.82rem; letter-spacing:.06em; color:var(--bone-dim);
@@ -361,11 +369,10 @@ button{ font-family:inherit; background:none; border:none; color:inherit; cursor
 }
 
 @media (max-width: 520px){
-  .logo-3d{ width:168px; height:52px; }
+  .logo-3d{ width:230px; height:72px; }
   .header-icons{ gap:14px; }
   .main-nav{ top:60px; }
   .product-grid{ gap:32px 16px; }
   #cart-drawer{ width:100vw; }
   .modal-info{ padding:28px; }
 }
-
