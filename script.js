@@ -391,9 +391,9 @@ const PRODUCTS = [
     name: 'Hoodie Spider Wash Azul Rey',
     category: 'sudaderas',
     desc: 'Pullover oversized efecto Spider Wash / Crystal Wash en azul rey marmoleado. Felpa Toronto de peso pesado.',
-    img: 'img/img.16png.JPG',
-    imgHover: 'img/img.17png.JPG',
-    gallery: ['img/img.16png.JPG', 'img/img.17png.JPG', 'img/img.18png.JPG'],
+    img: 'img/img.16png.jpg',
+    imgHover: 'img/img.17png.jpg',
+    gallery: ['img/img.16png.jpg', 'img/img.17png.jpg', 'img/img.18png.JPG'],
     sizes: ['CH', 'G', 'L', 'XL'],
     price: 300
   },
@@ -738,13 +738,39 @@ document.getElementById('cart-checkout').addEventListener('click', () => {
 const navToggle = document.getElementById('nav-toggle');
 const mainNav = document.getElementById('main-nav');
 navToggle?.addEventListener('click', () => mainNav.classList.toggle('open'));
-mainNav?.querySelectorAll('a').forEach(a => a.addEventListener('click', () => mainNav.classList.remove('open')));
+
+mainNav?.querySelectorAll('a').forEach(a => {
+  a.addEventListener('click', (e) => {
+    e.preventDefault();
+    mainNav.classList.remove('open');
+    const targetId = a.getAttribute('href').replace('#', '');
+    document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth' });
+  });
+});
+
+document.getElementById('hero-shop-link')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  document.getElementById('shop')?.scrollIntoView({ behavior: 'smooth' });
+});
+
+// El logo ya no usa href="#hero": hace scroll suave sin dejar el hash en la URL.
+document.getElementById('logo-3d-link')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  document.getElementById('hero')?.scrollIntoView({ behavior: 'smooth' });
+});
 
 /* =========================================================
    INIT
    ========================================================= */
 
 document.getElementById('year').textContent = new Date().getFullYear();
+
+// Si la página se abrió con un hash ya en la URL (p. ej. desde un enlace viejo
+// compartido con #hero), lo quitamos sin recargar ni perder la posición.
+if (window.location.hash) {
+  history.replaceState(null, '', window.location.pathname + window.location.search);
+}
+
 renderGrid();
 renderCart();
 initIntro();
