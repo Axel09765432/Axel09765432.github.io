@@ -765,10 +765,10 @@ document.getElementById('logo-3d-link')?.addEventListener('click', (e) => {
 
 document.getElementById('year').textContent = new Date().getFullYear();
 
-// Si la página se abrió con un hash ya en la URL (p. ej. desde un enlace viejo
-// compartido con #hero), lo quitamos sin recargar ni perder la posición.
-if (window.location.hash) {
-  history.replaceState(null, '', window.location.pathname + window.location.search);
+// Limpia la URL al cargar: quita hash viejo (#hero) y parámetros UTM
+// de Instagram/WhatsApp (?utm_source=ig&utm_medium=social...) sin recargar.
+if (window.location.hash || window.location.search) {
+  history.replaceState(null, '', window.location.pathname);
 }
 
 renderGrid();
