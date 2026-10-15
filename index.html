@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ASCSELO</title>
+<meta name="description" content="ASCSELO. Ropa urbana hecha en la Ciudad de México.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+
+<header class="top">
+  <button class="icon-btn" id="btn-menu" aria-label="Abrir menú">
+    <svg width="26" height="18" viewBox="0 0 26 18" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M0 1h26M0 9h26M0 17h26"/></svg>
+  </button>
+  <a class="brand" href="#inicio">ASCSELO</a>
+  <button class="icon-btn" id="btn-cart" aria-label="Abrir pedido">
+    <svg width="26" height="26" viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M3 5h3l2.6 11h11L22 8H8"/><circle cx="10" cy="21" r="1.6"/><circle cx="19" cy="21" r="1.6"/></svg>
+    <span class="badge" id="cart-count">0</span>
+  </button>
+</header>
+
+<!-- Menú -->
+<div class="overlay" id="menu" hidden>
+  <div class="menu-head">
+    <button class="icon-btn" id="menu-close" aria-label="Cerrar menú">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m3 3 16 16M19 3 3 19"/></svg>
+    </button>
+  </div>
+  <div class="menu-body">
+    <div class="brand big">ASCSELO</div>
+    <nav class="menu-links">
+      <a href="#productos">Colección</a>
+      <a href="#waffle">Conjuntos waffle</a>
+      <a href="#hoodies">Hoodies</a>
+      <a href="#origen">Origen</a>
+      <a href="#pagos">Métodos de pago</a>
+    </nav>
+  </div>
+  <div class="menu-account">
+    <a href="#" data-wa="Hola, quiero consultar mi cuenta o pedido.">Mi cuenta</a>
+    <a href="#productos">Favoritos</a>
+    <a href="#" data-chat="Atención al cliente">Atención al cliente</a>
+    <a href="#" data-chat="Envíos y devoluciones">Entrega y devoluciones</a>
+    <div class="menu-social"><a href="#" data-ig>Instagram</a><a href="#" data-wa="Hola, quiero información.">WhatsApp</a></div>
+  </div>
+</div>
+
+<main id="inicio">
+
+  <section class="hero">
+    <div class="eyebrow">Streetwear / CDMX</div>
+    <div class="stage letters-stage"><div class="word" id="word" aria-label="ASCSELO"></div></div>
+    <div class="floor floor-letters"></div>
+    <p class="lead">Prendas hechas para quienes se visten con intención.</p>
+    <a class="btn" href="#productos">Ver colección</a>
+  </section>
+
+  <section class="logo-section">
+    <div class="eyebrow">Nuestro símbolo</div>
+    <div class="stage logo-stage"><div class="slab" id="slab"></div></div>
+    <div class="floor floor-logo"></div>
+    <p class="logo-line">Tres aros, una sola pieza.</p>
+  </section>
+
+  <section class="collection" id="productos">
+    <div class="eyebrow">Piezas seleccionadas</div>
+    <h2>Cada prenda, una declaración.</h2>
+    <h3 class="sub" id="waffle">Conjuntos waffle</h3>
+    <div class="grid" id="grid-waffle"></div>
+    <h3 class="sub" id="hoodies">Hoodies</h3>
+    <div class="grid" id="grid-hoodies"></div>
+  </section>
+
+  <section class="origin" id="origen">
+    <div class="eyebrow">Origen</div>
+    <p class="origin-title">Nacida en la calle, hecha para quedarse.</p>
+    <p class="origin-text">ASCSELO viste lo que la ciudad no dice en voz alta.</p>
+  </section>
+
+  <section class="pay" id="pagos">
+    <div class="eyebrow">Métodos de pago</div>
+    <h2>Así puedes pagar.</h2>
+    <div class="pay-list">
+      <div class="pay-item">
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M3 12 16 4l13 8M6 12v12M12 12v12M20 12v12M26 12v12M3 28h26"/></svg>
+        <div><strong>Transferencia SPEI</strong><span>Desde tu app bancaria, a cualquier hora.</span></div>
+      </div>
+      <div class="pay-item">
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="3" y="7" width="26" height="18" rx="2"/><path d="M3 13h26M7 20h6"/></svg>
+        <div><strong>Depósito a tarjeta de débito</strong><span>Deposita en ventanilla o cajero.</span></div>
+      </div>
+      <div class="pay-item strong">
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M4 8h24v15H14l-6 5v-5H4z"/><path d="M10 14h12M10 18h7"/></svg>
+        <div><strong>Manda tu comprobante</strong><span>Por DM a @ascselo con tu nombre y pedido para confirmar.</span></div>
+      </div>
+    </div>
+    <p class="note">Los datos de cuenta te los enviamos por mensaje al confirmar tu pedido.</p>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <div class="foot-row">
+    <div class="brand">ASCSELO</div>
+    <div class="foot-links"><a href="#" data-ig>Instagram</a><a href="#" data-wa="Hola, quiero información.">WhatsApp</a></div>
+  </div>
+  <div class="copy">© 2026 ASCSELO</div>
+</footer>
+
+<!-- Pedido -->
+<aside class="drawer" id="drawer" hidden aria-label="Tu pedido">
+  <div class="drawer-head">
+    <strong>Tu pedido</strong>
+    <button class="icon-btn" id="drawer-close" aria-label="Cerrar pedido">
+      <svg width="20" height="20" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m3 3 16 16M19 3 3 19"/></svg>
+    </button>
+  </div>
+  <ul class="cart-list" id="cart-list"></ul>
+  <p class="empty" id="cart-empty">Aún no agregas prendas.</p>
+  <button class="btn solid" id="cart-send">Enviar pedido por WhatsApp</button>
+  <p class="note">Te confirmamos precio final y forma de pago por mensaje.</p>
+</aside>
+
+<!-- Chat -->
+<button class="chat-fab" id="chat-fab" aria-label="Abrir chat">
+  <svg width="26" height="26" viewBox="0 0 26 26" fill="none" stroke="#fff" stroke-width="1.5" aria-hidden="true"><path d="M3 5h20v13H11l-5 4v-4H3z"/></svg>
+</button>
+<section class="chat" id="chat" hidden aria-label="Chat ASCSELO">
+  <div class="chat-head">
+    <div><div class="brand small">ASCSELO</div><div class="status">en línea</div></div>
+    <button class="icon-btn light" id="chat-close" aria-label="Cerrar chat">
+      <svg width="18" height="18" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m3 3 16 16M19 3 3 19"/></svg>
+    </button>
+  </div>
+  <div class="chat-body" id="chat-body"></div>
+  <form class="chat-form" id="chat-form">
+    <input type="text" id="chat-input" placeholder="Escribe un mensaje..." autocomplete="off" aria-label="Escribe un mensaje">
+    <button type="submit" aria-label="Enviar"><svg width="18" height="18" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M3 11 21 3l-6 18-3-8z"/></svg></button>
+  </form>
+</section>
+
+<!-- Cookies -->
+<div class="cookies" id="cookies" hidden>
+  <p>Al navegar en este sitio aceptas las cookies que utilizamos para mejorar tu experiencia. <a href="#" id="cookies-more">Más información</a></p>
+  <button class="btn solid" id="cookies-accept">Aceptar cookies</button>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
