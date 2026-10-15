@@ -1,778 +1,241 @@
-/* =========================================================
-   ASCSELO — script.js
-   Requiere: index.html con <script type="importmap"> apuntando
-   a three.module.min.js y a three/addons/ (ya incluido).
-   ========================================================= */
-
-import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-
-/* =========================================================
-   1) INTRO — letras 3D formando ASCSELO
-   ========================================================= */
-
-// Orden de archivos = orden de la palabra (A S C S E L O)
-// Ajusta estos valores en radianes si alguna letra no queda de frente.
-const LETTER_FILES = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
-const LETTER_ROTATION_Y = {
-  A: Math.PI,        // estaba mirando hacia atrás -> girar 180°
-  B: 0,
-  C: -Math.PI / 2,    // orientar hacia la izquierda
-  D: 0,
-  E: -Math.PI / 2,    // orientar hacia la izquierda
-  F: Math.PI / 2,     // L: mirando de frente -> girar hacia la derecha
-  G: 0
+/* ASCSELO — script.js
+   Cambia aquí tu número de WhatsApp (lada de país + número, sin + ni espacios).
+   Ejemplo para México: "5215512345678" */
+const CONFIG = {
+  whatsapp: "52XXXXXXXXXX",
+  instagram: "https://instagram.com/ascselo"
 };
 
-const INTRO_HOLD_MS = 10000; // 10s completamente quietas
-
-function initIntro() {
-  const canvas = document.getElementById('intro-canvas');
-  const introEl = document.getElementById('intro');
-  const skipBtn = document.getElementById('intro-skip');
-  if (!canvas) return;
-
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x050505);
-  scene.fog = new THREE.Fog(0x050505, 8, 22);
-
-  const camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.1, 100);
-  camera.position.set(0, 0.3, 9);
-
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
-
-  // Iluminación oscura y elegante: luz fría de relleno + rim cálido tenue
-  const ambient = new THREE.AmbientLight(0x3a362f, 1.1);
-  scene.add(ambient);
-  const key = new THREE.DirectionalLight(0xe7ddc7, 1.6);
-  key.position.set(4, 5, 6);
-  scene.add(key);
-  const rim = new THREE.DirectionalLight(0x6e1c1c, 0.8);
-  rim.position.set(-5, 2, -4);
-  scene.add(rim);
-
-  const group = new THREE.Group();
-  scene.add(group);
-
-  const loader = new GLTFLoader();
-  const spacing = 1.5;
-  let loadedCount = 0;
-  let introEnded = false;
-  let groupSize = null; // ancho/alto reales del grupo a escala 1, medidos una vez cargado todo
-
-  LETTER_FILES.forEach((file, i) => {
-    loader.load(
-      `img-3d/${file}.glb`,
-      (gltf) => {
-        const model = gltf.scene;
-
-        // Escala uniforme: todas las letras a la misma altura visual, sin deformar
-        const box = new THREE.Box3().setFromObject(model);
-        const size = new THREE.Vector3();
-        box.getSize(size);
-        const maxDim = Math.max(size.x, size.y, size.z) || 1;
-        const targetSize = 1.3;
-        const scale = targetSize / maxDim;
-        model.scale.setScalar(scale);
-
-        // Recentrar el modelo en su propio origen
-        const center = new THREE.Vector3();
-        box.getCenter(center);
-        model.position.sub(center.multiplyScalar(scale));
-
-        model.rotation.y += LETTER_ROTATION_Y[file] || 0;
-        model.position.x += (i - (LETTER_FILES.length - 1) / 2) * spacing;
-
-        group.add(model);
-        loadedCount++;
-        if (loadedCount === LETTER_FILES.length) {
-          const fullBox = new THREE.Box3().setFromObject(group);
-          const fullSize = new THREE.Vector3();
-          fullBox.getSize(fullSize);
-          groupSize = fullSize;
-          fitGroupToViewport();
-          startHold();
-        }
-      },
-      undefined,
-      (err) => {
-        console.error(`No se pudo cargar img-3d/${file}.glb`, err);
-        loadedCount++;
-        if (loadedCount === LETTER_FILES.length) startHold();
-      }
-    );
-  });
-
-  // Encoge el conjunto completo (sin deformar, escala uniforme) para que
-  // ASCSELO siempre quepa dentro del ancho visible, sobre todo en celulares
-  // en vertical donde el campo de visión horizontal es mucho más angosto.
-  function fitGroupToViewport() {
-    if (!groupSize) return;
-    const vFov = (camera.fov * Math.PI) / 180;
-    const visibleHeight = 2 * Math.tan(vFov / 2) * camera.position.z;
-    const visibleWidth = visibleHeight * camera.aspect;
-
-    const scaleForWidth = (visibleWidth * 0.82) / groupSize.x;
-    const scaleForHeight = (visibleHeight * 0.7) / groupSize.y;
-    const fitScale = Math.min(1, scaleForWidth, scaleForHeight);
-
-    group.scale.setScalar(fitScale);
-  }
-
-  function startHold() {
-    // Las letras ya están todas colocadas y quietas: esperar 10s exactos.
-    setTimeout(endIntro, INTRO_HOLD_MS);
-  }
-
-  function endIntro() {
-    if (introEnded) return;
-    introEnded = true;
-    introEl.classList.add('intro-done');
-    revealPage();
-    initLogoScene();
-    setTimeout(() => { introEl.style.display = 'none'; }, 1200);
-  }
-
-  skipBtn?.addEventListener('click', endIntro);
-
-  function onResize() {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    fitGroupToViewport();
-  }
-  window.addEventListener('resize', onResize);
-
-  function animate() {
-    if (introEl.style.display === 'none') return;
-    requestAnimationFrame(animate);
-    renderer.render(scene, camera);
-  }
-  animate();
-}
-
-function revealPage() {
-  document.querySelectorAll('.hidden-until-intro').forEach((el, i) => {
-    setTimeout(() => el.classList.add('reveal'), i * 120);
-  });
-}
-
-/* Logo 3D persistente en el header: mismas letras, giro continuo,
-   se activa una sola vez al terminar (o saltar) la intro. */
-let logoSceneStarted = false;
-function initLogoScene() {
-  if (logoSceneStarted) return;
-  logoSceneStarted = true;
-
-  const canvas = document.getElementById('logo-canvas');
-  if (!canvas) return;
-
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 50);
-  camera.position.set(0, 0, 8.5);
-
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-
-  const ambient = new THREE.AmbientLight(0x3a362f, 1.2);
-  scene.add(ambient);
-  const key = new THREE.DirectionalLight(0xe7ddc7, 1.7);
-  key.position.set(3, 4, 5);
-  scene.add(key);
-
-  const group = new THREE.Group();
-  scene.add(group);
-
-  const controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableZoom = false;
-  controls.enablePan = false;
-  controls.autoRotate = false;
-
-  const loader = new GLTFLoader();
-  const spacing = 0.95;
-  const letterSpin = []; // cada letra gira por su cuenta, a su propio ritmo
-
-  LETTER_FILES.forEach((file, i) => {
-    loader.load(`img-3d/${file}.glb`, (gltf) => {
-      const model = gltf.scene;
-      const box = new THREE.Box3().setFromObject(model);
-      const size = new THREE.Vector3();
-      box.getSize(size);
-      const maxDim = Math.max(size.x, size.y, size.z) || 1;
-      const scale = 0.85 / maxDim;
-      model.scale.setScalar(scale);
-
-      const center = new THREE.Vector3();
-      box.getCenter(center);
-      model.position.sub(center.multiplyScalar(scale));
-
-      model.rotation.y += LETTER_ROTATION_Y[file] || 0;
-      model.position.x += (i - (LETTER_FILES.length - 1) / 2) * spacing;
-      group.add(model);
-
-      letterSpin.push({
-        model,
-        speed: 0.006 + (i % 4) * 0.003,
-        dir: i % 2 === 0 ? 1 : -1
-      });
-    });
-  });
-
-  function resize() {
-    const w = canvas.clientWidth, h = canvas.clientHeight;
-    if (!w || !h) return;
-    renderer.setSize(w, h, false);
-    camera.aspect = w / h;
-    camera.updateProjectionMatrix();
-  }
-  const ro = new ResizeObserver(resize);
-  ro.observe(canvas);
-  resize();
-
-  function animate() {
-    requestAnimationFrame(animate);
-    letterSpin.forEach(l => { l.model.rotation.y += l.speed * l.dir; });
-    controls.update();
-    renderer.render(scene, camera);
-  }
-  animate();
-}
-
-/* =========================================================
-   2) SHOWCASE — prendas en 3D (I.glb / J.glb)
-   ========================================================= */
-
-function initShowcaseModel(canvasId, glbFile) {
-  const canvas = document.getElementById(canvasId);
-  if (!canvas) return;
-
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
-  camera.position.set(0, 0.2, 4.2);
-
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-
-  const ambient = new THREE.AmbientLight(0x403c34, 1.4);
-  scene.add(ambient);
-  const key = new THREE.DirectionalLight(0xe7ddc7, 1.8);
-  key.position.set(3, 4, 5);
-  scene.add(key);
-  const fill = new THREE.DirectionalLight(0x5a5346, 0.6);
-  fill.position.set(-4, -1, -3);
-  scene.add(fill);
-
-  const controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableZoom = false;
-  controls.enablePan = false;
-  controls.autoRotate = true;
-  controls.autoRotateSpeed = 1.4;
-
-  const loader = new GLTFLoader();
-  loader.load(`img-3d/${glbFile}.glb`, (gltf) => {
-    const model = gltf.scene;
-    const box = new THREE.Box3().setFromObject(model);
-    const size = new THREE.Vector3();
-    box.getSize(size);
-    const center = new THREE.Vector3();
-    box.getCenter(center);
-    const maxDim = Math.max(size.x, size.y, size.z) || 1;
-    const scale = 2.4 / maxDim;
-    model.scale.setScalar(scale);
-    model.position.sub(center.multiplyScalar(scale));
-    scene.add(model);
-  });
-
-  function resize() {
-    const w = canvas.clientWidth, h = canvas.clientHeight;
-    renderer.setSize(w, h, false);
-    camera.aspect = w / h;
-    camera.updateProjectionMatrix();
-  }
-
-  const ro = new ResizeObserver(resize);
-  ro.observe(canvas);
-
-  function animate() {
-    requestAnimationFrame(animate);
-    controls.update();
-    renderer.render(scene, camera);
-  }
-  resize();
-  animate();
-}
-
-/* =========================================================
-   3) CATÁLOGO DE PRODUCTOS
-   ========================================================= */
-
+/* Fotos: sube estos archivos a la carpeta img/ de tu repositorio.
+   Si dejas img vacío, se muestra "Foto pendiente". */
 const PRODUCTS = [
-  {
-    id: 'conjunto-waffle-blanco',
-    name: 'Conjunto Waffle Knit Blanco',
-    category: 'conjuntos',
-    desc: 'Playera de manga corta y short waffle knit a juego. Tela pesada, diseño monocromático.',
-    img: 'img/img.02png.jpg',
-    imgHover: 'img/img.1png.jpeg',
-    gallery: ['img/img.02png.jpg', 'img/img.1png.jpeg', 'img/img.2png.jpeg'],
-    variantImages: {
-      'Conjunto completo': 'img/img.02png.jpg',
-      'Solo playera': 'img/img.1png.jpeg',
-      'Solo short': 'img/img.2png.jpeg'
-    },
-    sizes: ['CH', 'G', 'L', 'XL'],
-    variants: [
-      { name: 'Conjunto completo', price: 389 },
-      { name: 'Solo playera', price: 200 },
-      { name: 'Solo short', price: 189 }
-    ]
-  },
-  {
-    id: 'conjunto-waffle-negro',
-    name: 'Conjunto Waffle Knit Negro',
-    category: 'conjuntos',
-    desc: 'Playera de manga corta y short waffle knit a juego en negro. Tela pesada, apariencia premium.',
-    img: 'img/img.06png.jpg',
-    imgHover: 'img/img.4png.png',
-    gallery: ['img/img.06png.jpg', 'img/img.4png.png', 'img/img.5png.jpeg'],
-    variantImages: {
-      'Conjunto completo': 'img/img.06png.jpg',
-      'Solo playera': 'img/img.4png.png',
-      'Solo short': 'img/img.5png.jpeg'
-    },
-    sizes: ['CH', 'G', 'L', 'XL'],
-    variants: [
-      { name: 'Conjunto completo', price: 389 },
-      { name: 'Solo playera', price: 200 },
-      { name: 'Solo short', price: 189 }
-    ]
-  },
-  {
-    id: 'hoodie-acid-gris',
-    name: 'Hoodie Acid Wash Gris',
-    category: 'sudaderas',
-    desc: 'Pullover oversized efecto Acid Wash en gris claro deslavado con matices marfil. Felpa Toronto de alto gramaje.',
-    img: 'img/img.7png.jpg',
-    imgHover: 'img/img.8png.jpg',
-    gallery: ['img/img.7png.jpg', 'img/img.8png.jpg', 'img/img.9png.jpg'],
-    sizes: ['CH', 'G', 'L', 'XL'],
-    price: 300
-  },
-  {
-    id: 'hoodie-acid-morada',
-    name: 'Hoodie Acid Wash Morada',
-    category: 'sudaderas',
-    desc: 'Pullover oversized efecto Acid Wash / Mineral Wash en morado deslavado. Felpa Toronto de gramaje pesado.',
-    img: 'img/img.10png.jpg',
-    imgHover: 'img/img.11png.png',
-    gallery: ['img/img.10png.jpg', 'img/img.11png.png', 'img/img.12png.JPG'],
-    sizes: ['CH', 'G', 'L', 'XL'],
-    price: 300
-  },
-  {
-    id: 'hoodie-azul-negro',
-    name: 'Hoodie Crystal Wash Azul/Negro',
-    category: 'sudaderas',
-    desc: 'Pullover oversized efecto Crystal Wash en azul eléctrico con negro. Exterior jaspeado, interior afelpado.',
-    img: 'img/img.13png.png',
-    imgHover: 'img/img.14png.jpg',
-    gallery: ['img/img.13png.png', 'img/img.14png.jpg', 'img/img.15png.JPG'],
-    sizes: ['CH', 'G', 'L', 'XL'],
-    price: 300
-  },
-  {
-    id: 'hoodie-azul-rey',
-    name: 'Hoodie Spider Wash Azul Rey',
-    category: 'sudaderas',
-    desc: 'Pullover oversized efecto Spider Wash / Crystal Wash en azul rey marmoleado. Felpa Toronto de peso pesado.',
-    img: 'img/img.16png.jpg',
-    imgHover: 'img/img.17png.jpg',
-    gallery: ['img/img.16png.jpg', 'img/img.17png.jpg', 'img/img.18png.JPG'],
-    sizes: ['CH', 'G', 'L', 'XL'],
-    price: 300
-  },
-  {
-    id: 'hoodie-serpiente',
-    name: 'Hoodie Serpiente',
-    category: 'sudaderas',
-    desc: 'Hoodie clásico con cordón y bolsillo canguro, negro azabache. Gráfico de serpiente estilo lujo al frente.',
-    img: 'img/img.19png.JPG',
-    imgHover: 'img/img.20png.PNG',
-    gallery: ['img/img.19png.JPG', 'img/img.20png.PNG', 'img/img.21png.PNG'],
-    sizes: ['CH', 'G', 'L', 'XL'],
-    price: 300
-  },
-  {
-    id: 'hoodie-tigre',
-    name: 'Hoodie Tigre',
-    category: 'sudaderas',
-    desc: 'Hoodie clásico con cordón y bolsillo canguro, negro azabache. Cabeza de tigre rugiendo en la espalda.',
-    img: 'img/img.22png.jpeg',
-    imgHover: 'img/img.23png.jpeg',
-    gallery: ['img/img.22png.jpeg', 'img/img.23png.jpeg', 'img/img.24png.jpeg'],
-    sizes: ['CH', 'G', 'L', 'XL'],
-    price: 300
-  },
-  {
-    id: 'pantalon-pana-negro',
-    name: 'Pantalón de Pana Negro',
-    category: 'pantalones',
-    desc: 'Corte recto estilo Carpenter/Workwear, bolsillos de parche. Negro azabache, textura de pana.',
-    img: 'img/img.38png.jpeg',
-    imgHover: 'img/img.35png.jpg',
-    gallery: ['img/img.38png.jpeg', 'img/img.35png.jpg', 'img/img.36png.jpg', 'img/img.37png.jpg'],
-    sizes: ['CH', 'G', 'L', 'XL'],
-    price: 320
-  },
-  {
-    id: 'pantalon-pana-blanco',
-    name: 'Pantalón de Pana Blanco Hueso',
-    category: 'pantalones',
-    desc: 'Corte recto estilo Carpenter/Workwear, bolsillo de parche delantero. Blanco hueso, textura de pana.',
-    img: 'img/img.39png.png',
-    imgHover: 'img/img.40png.jpg',
-    gallery: ['img/img.39png.png', 'img/img.40png.jpg', 'img/img.41png.jpg', 'img/img.42png.jpg'],
-    sizes: ['CH', 'G', 'L', 'XL'],
-    price: 320
-  }
+  { id: "waffle-blanco", group: "waffle", name: "Conjunto Waffle Knit Blanco",
+    desc: "Playera de manga corta y short waffle knit a juego. Tela pesada, diseño monocromático.",
+    price: "Desde $189 MXN", img: "", pieces: ["Conjunto completo", "Solo playera", "Solo short"] },
+  { id: "waffle-negro", group: "waffle", name: "Conjunto Waffle Knit Negro",
+    desc: "Playera de manga corta y short waffle knit a juego en negro. Tela pesada, apariencia premium.",
+    price: "Desde $189 MXN", img: "", pieces: ["Conjunto completo", "Solo playera", "Solo short"] },
+  { id: "hoodie-gris", group: "hoodies", name: "Hoodie Acid Wash Gris",
+    desc: "Pullover oversized efecto Acid Wash en gris claro deslavado con matices marfil. Felpa Toronto de alto gramaje.",
+    price: "Desde $300 MXN", img: "" },
+  { id: "hoodie-morada", group: "hoodies", name: "Hoodie Acid Wash Morada",
+    desc: "Pullover oversized efecto Acid Wash / Mineral Wash en morado deslavado. Felpa Toronto de gramaje pesado.",
+    price: "Desde $300 MXN", img: "" },
+  { id: "hoodie-serpiente", group: "hoodies", name: "Hoodie Serpiente",
+    desc: "Hoodie clásico con cordón y bolsillo canguro, negro azabache. Gráfico de serpiente estilo lujo al frente.",
+    price: "Desde $300 MXN", img: "img/hoodie-serpiente.jpg" },
+  { id: "hoodie-tigre", group: "hoodies", name: "Hoodie Tigre",
+    desc: "Hoodie clásico con cordón y bolsillo canguro, negro azabache. Cabeza de tigre rugiendo en la espalda.",
+    price: "Desde $300 MXN", img: "img/hoodie-tigre.jpg" }
 ];
+const SIZES = ["CH", "G", "L", "XL"];
 
-function formatMXN(n) {
-  return `$${n.toLocaleString('es-MX')} MXN`;
+const $ = (s, r = document) => r.querySelector(s);
+const waLink = (text) => "https://wa.me/" + CONFIG.whatsapp + "?text=" + encodeURIComponent(text);
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+};
+
+/* ---------- 3D: letras ---------- */
+function mix(a, b, t) {
+  const pa = [1, 3, 5].map(i => parseInt(a.slice(i, i + 2), 16));
+  const pb = [1, 3, 5].map(i => parseInt(b.slice(i, i + 2), 16));
+  return "#" + pa.map((v, i) => Math.round(v + (pb[i] - v) * t).toString(16).padStart(2, "0")).join("");
 }
-
-function priceOf(product) {
-  return product.price ?? Math.min(...product.variants.map(v => v.price));
-}
-
-/* =========================================================
-   4) RENDER DEL CATÁLOGO
-   ========================================================= */
-
-const grid = document.getElementById('product-grid');
-let activeCategory = 'todos';
-
-function renderGrid() {
-  grid.innerHTML = '';
-  const items = activeCategory === 'todos'
-    ? PRODUCTS
-    : PRODUCTS.filter(p => p.category === activeCategory);
-
-  items.forEach(p => {
-    const card = document.createElement('article');
-    card.className = 'product-card';
-    card.innerHTML = `
-      <div class="product-img">
-        <img src="${p.img}" alt="${p.name}" loading="lazy">
-        <img src="${p.imgHover}" alt="" class="img-hover" loading="lazy">
-      </div>
-      <h3 class="product-name">${p.name}</h3>
-      <p class="product-desc">${p.desc}</p>
-      <span class="product-price">Desde ${formatMXN(priceOf(p))}</span>
-    `;
-    card.addEventListener('click', () => openModal(p.id));
-    grid.appendChild(card);
-  });
-}
-
-document.getElementById('category-filters').addEventListener('click', (e) => {
-  const btn = e.target.closest('.filter-btn');
-  if (!btn) return;
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  activeCategory = btn.dataset.cat;
-  renderGrid();
-});
-
-/* =========================================================
-   5) MODAL DE PRODUCTO
-   ========================================================= */
-
-const productModal = document.getElementById('product-modal');
-const productOverlay = document.getElementById('product-overlay');
-const modalBody = document.getElementById('modal-body');
-let currentProduct = null;
-let currentVariant = null;
-let currentSize = null;
-
-function openModal(id) {
-  const p = PRODUCTS.find(x => x.id === id);
-  if (!p) return;
-  currentProduct = p;
-  currentVariant = p.variants ? p.variants[0] : null;
-  currentSize = null;
-
-  const variantHTML = p.variants
-    ? `<p class="section-label">Elige la pieza</p>
-       <div class="size-row" id="variant-row">
-        ${p.variants.map((v, i) => `<button class="size-btn${i === 0 ? ' selected' : ''}" data-variant="${i}">${v.name}</button>`).join('')}
-       </div>`
-    : '';
-
-  const thumbsHTML = p.gallery.length > 1
-    ? `<div class="modal-thumbs" id="modal-thumbs">
-        ${p.gallery.map((src, i) => `<button class="modal-thumb${i === 0 ? ' active' : ''}" data-src="${src}"><img src="${src}" alt=""></button>`).join('')}
-       </div>`
-    : '';
-
-  modalBody.innerHTML = `
-    <div class="modal-gallery">
-      <img id="modal-main-img" src="${p.gallery[0]}" alt="${p.name}">
-      ${thumbsHTML}
-    </div>
-    <div class="modal-info">
-      <h3>${p.name}</h3>
-      <p class="product-desc">${p.desc}</p>
-      <span class="product-price" id="modal-price">${formatMXN(priceOf(p))}</span>
-      ${variantHTML}
-      <p class="section-label">Talla</p>
-      <div class="size-row" id="size-row">
-        ${p.sizes.map(s => `<button class="size-btn" data-size="${s}">${s}</button>`).join('')}
-      </div>
-      <button class="btn-solid" id="modal-add">Agregar al carrito</button>
-    </div>
-  `;
-
-  modalBody.querySelector('#modal-thumbs')?.addEventListener('click', (e) => {
-    const btn = e.target.closest('.modal-thumb');
-    if (!btn) return;
-    modalBody.querySelectorAll('.modal-thumb').forEach(t => t.classList.remove('active'));
-    btn.classList.add('active');
-    modalBody.querySelector('#modal-main-img').src = btn.dataset.src;
-  });
-
-  modalBody.querySelector('#variant-row')?.addEventListener('click', (e) => {
-    const btn = e.target.closest('.size-btn');
-    if (!btn) return;
-    modalBody.querySelectorAll('#variant-row .size-btn').forEach(b => b.classList.remove('selected'));
-    btn.classList.add('selected');
-    currentVariant = p.variants[Number(btn.dataset.variant)];
-    modalBody.querySelector('#modal-price').textContent = formatMXN(currentVariant.price);
-
-    // Cambia la imagen principal a la pieza elegida (playera / short / conjunto)
-    const variantSrc = p.variantImages?.[currentVariant.name];
-    if (variantSrc) {
-      modalBody.querySelector('#modal-main-img').src = variantSrc;
-      modalBody.querySelectorAll('.modal-thumb').forEach(t => {
-        t.classList.toggle('active', t.dataset.src === variantSrc);
-      });
+(function letters() {
+  const word = $("#word");
+  "ASCSELO".split("").forEach((ch, k) => {
+    const l = document.createElement("div");
+    l.className = "l";
+    l.setAttribute("aria-hidden", "true");
+    l.style.animationDelay = (k * 0.25) + "s";
+    for (let i = 11; i >= 0; i--) {
+      const ly = document.createElement("div");
+      ly.className = "ly";
+      ly.textContent = ch;
+      ly.style.transform = "translateZ(" + (-i * 1.6) + "px)";
+      ly.style.color = i === 0 ? "#171614" : mix("#8f8672", "#2c2a25", i / 11);
+      l.appendChild(ly);
     }
+    word.appendChild(l);
   });
+})();
 
-  modalBody.querySelector('#size-row').addEventListener('click', (e) => {
-    const btn = e.target.closest('.size-btn');
-    if (!btn) return;
-    modalBody.querySelectorAll('#size-row .size-btn').forEach(b => b.classList.remove('selected'));
-    btn.classList.add('selected');
-    currentSize = btn.dataset.size;
+/* ---------- 3D: logo ---------- */
+(function logo() {
+  const slab = $("#slab");
+  for (let i = 9; i >= 0; i--) {
+    const im = document.createElement("img");
+    im.src = "img/logo-ascselo.jpg";
+    im.alt = "";
+    im.style.transform = "translateZ(" + (-i * 2) + "px)";
+    im.style.filter = "brightness(" + (i === 0 ? 1 : 0.55) + ")";
+    slab.appendChild(im);
+  }
+})();
+
+/* ---------- Productos ---------- */
+function esc(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;"); }
+(function products() {
+  PRODUCTS.forEach(p => {
+    const card = document.createElement("article");
+    card.className = "card";
+    const shot = p.img
+      ? '<img src="' + esc(p.img) + '" alt="' + esc(p.name) + '" loading="lazy">'
+      : '<div class="ph">Foto pendiente</div>';
+    const pieces = (p.pieces || []).map((n, i) =>
+      '<label><input type="radio" name="pz-' + p.id + '" value="' + esc(n) + '"' + (i === 0 ? " checked" : "") + '><span>' + esc(n) + '</span></label>').join("");
+    const sizes = SIZES.map(s =>
+      '<label><input type="radio" name="sz-' + p.id + '" value="' + s + '"><span>' + s + '</span></label>').join("");
+    card.innerHTML =
+      '<div class="shot">' + shot + '</div>' +
+      '<h4>' + esc(p.name) + '</h4>' +
+      '<p class="desc">' + esc(p.desc) + '</p>' +
+      '<p class="price">' + esc(p.price) + '</p>' +
+      (pieces ? '<div class="opts pieza" role="radiogroup" aria-label="Pieza">' + pieces + '</div>' : "") +
+      '<div class="opts" role="radiogroup" aria-label="Talla">' + sizes + '</div>' +
+      '<button class="add" type="button" data-id="' + p.id + '">Agregar al pedido</button>';
+    $("#grid-" + p.group).appendChild(card);
   });
-
-  modalBody.querySelector('#modal-add').addEventListener('click', () => {
-    if (!currentSize) {
-      alert('Selecciona una talla antes de agregar al carrito.');
+  document.addEventListener("click", e => {
+    const b = e.target.closest(".add");
+    if (!b) return;
+    const p = PRODUCTS.find(x => x.id === b.dataset.id);
+    const sz = document.querySelector('input[name="sz-' + p.id + '"]:checked');
+    if (!sz) {
+      const t = b.textContent; b.textContent = "Elige tu talla";
+      setTimeout(() => { b.textContent = t; }, 1400);
       return;
     }
-    addToCart(p, currentVariant, currentSize);
-    closeModal();
-    openCart();
+    const pz = document.querySelector('input[name="pz-' + p.id + '"]:checked');
+    cart.push({ name: p.name, size: sz.value, piece: pz ? pz.value : "" });
+    saveCart(); renderCart();
+    const t = b.textContent; b.textContent = "Agregado";
+    setTimeout(() => { b.textContent = t; }, 1200);
   });
+})();
 
-  productModal.classList.add('open');
-  productOverlay.classList.add('open');
-}
-
-function closeModal() {
-  productModal.classList.remove('open');
-  productOverlay.classList.remove('open');
-}
-
-document.getElementById('product-modal-close').addEventListener('click', closeModal);
-productOverlay.addEventListener('click', closeModal);
-
-/* =========================================================
-   6) CARRITO
-   ========================================================= */
-
-const CART_KEY = 'ascselo_cart';
-let cart = loadCart();
-
-function loadCart() {
-  try {
-    return JSON.parse(localStorage.getItem(CART_KEY)) || [];
-  } catch {
-    return [];
-  }
-}
-
-function saveCart() {
-  localStorage.setItem(CART_KEY, JSON.stringify(cart));
-}
-
-function addToCart(product, variant, size) {
-  const label = variant ? variant.name : 'Único';
-  const price = variant ? variant.price : product.price;
-  const lineId = `${product.id}__${label}__${size}`;
-  const existing = cart.find(i => i.lineId === lineId);
-
-  if (existing) {
-    existing.qty += 1;
-  } else {
-    cart.push({
-      lineId,
-      productId: product.id,
-      name: product.name,
-      variant: label,
-      size,
-      price,
-      img: product.img,
-      qty: 1
-    });
-  }
-  saveCart();
-  renderCart();
-}
-
-function updateQty(lineId, delta) {
-  const item = cart.find(i => i.lineId === lineId);
-  if (!item) return;
-  item.qty += delta;
-  if (item.qty <= 0) cart = cart.filter(i => i.lineId !== lineId);
-  saveCart();
-  renderCart();
-}
-
-function removeItem(lineId) {
-  cart = cart.filter(i => i.lineId !== lineId);
-  saveCart();
-  renderCart();
-}
-
-function cartTotal() {
-  return cart.reduce((sum, i) => sum + i.price * i.qty, 0);
-}
-
+/* ---------- Pedido ---------- */
+let cart = [];
+try { cart = JSON.parse(store.get("ascselo_cart") || "[]"); } catch (e) { cart = []; }
+function saveCart() { store.set("ascselo_cart", JSON.stringify(cart)); }
 function renderCart() {
-  const itemsEl = document.getElementById('cart-items');
-  const countEl = document.getElementById('cart-count');
-  const subtotalEl = document.getElementById('cart-subtotal');
-  const totalEl = document.getElementById('cart-total');
-
-  countEl.textContent = cart.reduce((n, i) => n + i.qty, 0);
-
-  if (cart.length === 0) {
-    itemsEl.innerHTML = '<p class="cart-empty">Tu carrito está vacío.</p>';
-  } else {
-    itemsEl.innerHTML = cart.map(i => `
-      <div class="cart-item">
-        <img src="${i.img}" alt="${i.name}">
-        <div>
-          <p class="cart-item-name">${i.name}</p>
-          <p class="cart-item-meta">${i.variant} · Talla ${i.size}</p>
-          <div class="qty-control">
-            <button data-action="dec" data-line="${i.lineId}">−</button>
-            <span>${i.qty}</span>
-            <button data-action="inc" data-line="${i.lineId}">+</button>
-          </div>
-          <p class="cart-item-remove" data-action="remove" data-line="${i.lineId}">Eliminar</p>
-        </div>
-        <span class="cart-item-price">${formatMXN(i.price * i.qty)}</span>
-      </div>
-    `).join('');
-  }
-
-  const total = cartTotal();
-  subtotalEl.textContent = formatMXN(total);
-  totalEl.textContent = formatMXN(total);
-}
-
-document.getElementById('cart-items').addEventListener('click', (e) => {
-  const btn = e.target.closest('[data-action]');
-  if (!btn) return;
-  const { action, line } = btn.dataset;
-  if (action === 'inc') updateQty(line, 1);
-  if (action === 'dec') updateQty(line, -1);
-  if (action === 'remove') removeItem(line);
-});
-
-const cartDrawer = document.getElementById('cart-drawer');
-const cartOverlay = document.getElementById('cart-overlay');
-
-function openCart() {
-  cartDrawer.classList.add('open');
-  cartOverlay.classList.add('open');
-}
-function closeCart() {
-  cartDrawer.classList.remove('open');
-  cartOverlay.classList.remove('open');
-}
-
-document.getElementById('cart-toggle').addEventListener('click', openCart);
-document.getElementById('cart-close').addEventListener('click', closeCart);
-cartOverlay.addEventListener('click', closeCart);
-
-document.getElementById('cart-checkout').addEventListener('click', () => {
-  if (cart.length === 0) {
-    alert('Tu carrito está vacío.');
-    return;
-  }
-  const lines = cart.map(i => `• ${i.name} (${i.variant}, talla ${i.size}) x${i.qty} — ${formatMXN(i.price * i.qty)}`);
-  const message = [
-    'Hola, quiero hacer un pedido en ASCSELO:',
-    ...lines,
-    `Total: ${formatMXN(cartTotal())}`
-  ].join('\n');
-  const url = `https://wa.me/message/DJHUQTS3TYOYK1?text=${encodeURIComponent(message)}`;
-  window.open(url, '_blank');
-});
-
-/* =========================================================
-   7) NAV MÓVIL
-   ========================================================= */
-
-const navToggle = document.getElementById('nav-toggle');
-const mainNav = document.getElementById('main-nav');
-navToggle?.addEventListener('click', () => mainNav.classList.toggle('open'));
-
-mainNav?.querySelectorAll('a').forEach(a => {
-  a.addEventListener('click', (e) => {
-    e.preventDefault();
-    mainNav.classList.remove('open');
-    const targetId = a.getAttribute('href').replace('#', '');
-    document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth' });
+  const ul = $("#cart-list");
+  ul.innerHTML = "";
+  cart.forEach((it, i) => {
+    const li = document.createElement("li");
+    const left = document.createElement("div");
+    left.textContent = it.name;
+    const sm = document.createElement("small");
+    sm.textContent = (it.piece ? it.piece + " · " : "") + "Talla " + it.size;
+    left.appendChild(sm);
+    const rm = document.createElement("button");
+    rm.type = "button"; rm.textContent = "Quitar";
+    rm.addEventListener("click", () => { cart.splice(i, 1); saveCart(); renderCart(); });
+    li.appendChild(left); li.appendChild(rm);
+    ul.appendChild(li);
   });
-});
-
-document.getElementById('hero-shop-link')?.addEventListener('click', (e) => {
-  e.preventDefault();
-  document.getElementById('shop')?.scrollIntoView({ behavior: 'smooth' });
-});
-
-// El logo ya no usa href="#hero": hace scroll suave sin dejar el hash en la URL.
-document.getElementById('logo-3d-link')?.addEventListener('click', (e) => {
-  e.preventDefault();
-  document.getElementById('hero')?.scrollIntoView({ behavior: 'smooth' });
-});
-
-/* =========================================================
-   INIT
-   ========================================================= */
-
-document.getElementById('year').textContent = new Date().getFullYear();
-
-// Limpia la URL al cargar: quita hash viejo (#hero) y parámetros UTM
-// de Instagram/WhatsApp (?utm_source=ig&utm_medium=social...) sin recargar.
-if (window.location.hash || window.location.search) {
-  history.replaceState(null, '', window.location.pathname);
+  $("#cart-count").textContent = cart.length;
+  $("#cart-empty").hidden = cart.length > 0;
+  $("#cart-send").hidden = cart.length === 0;
 }
-
-renderGrid();
+$("#btn-cart").addEventListener("click", () => { $("#drawer").hidden = false; });
+$("#drawer-close").addEventListener("click", () => { $("#drawer").hidden = true; });
+$("#cart-send").addEventListener("click", () => {
+  const lines = cart.map(it => "- " + it.name + (it.piece ? " (" + it.piece + ")" : "") + " · Talla " + it.size);
+  window.open(waLink("Hola ASCSELO, quiero hacer este pedido:\n" + lines.join("\n")), "_blank");
+});
 renderCart();
-initIntro();
-initShowcaseModel('showcase-canvas-1', 'I');
-initShowcaseModel('showcase-canvas-2', 'J');
+
+/* ---------- Menú ---------- */
+const menu = $("#menu");
+$("#btn-menu").addEventListener("click", () => { menu.hidden = false; });
+$("#menu-close").addEventListener("click", () => { menu.hidden = true; });
+menu.addEventListener("click", e => {
+  const a = e.target.closest("a");
+  if (!a) return;
+  if (a.dataset.chat) { e.preventDefault(); menu.hidden = true; openChat(a.dataset.chat); return; }
+  menu.hidden = true;
+});
+document.querySelectorAll("[data-ig]").forEach(a => { a.href = CONFIG.instagram; a.target = "_blank"; a.rel = "noopener"; });
+document.querySelectorAll("[data-wa]").forEach(a => { a.href = waLink(a.dataset.wa); a.target = "_blank"; a.rel = "noopener"; });
+
+/* ---------- Cookies ---------- */
+(function cookies() {
+  const bar = $("#cookies");
+  if (store.get("ascselo_cookies") === "ok") return;
+  bar.hidden = false;
+  document.body.classList.add("has-cookies");
+  $("#cookies-accept").addEventListener("click", () => {
+    store.set("ascselo_cookies", "ok");
+    bar.hidden = true;
+    document.body.classList.remove("has-cookies");
+  });
+  $("#cookies-more").addEventListener("click", e => {
+    e.preventDefault();
+    e.target.textContent = "Usamos cookies para recordar tu pedido y entender cómo se usa el sitio.";
+  });
+})();
+
+/* ---------- Chat ---------- */
+const chat = $("#chat"), body = $("#chat-body");
+const WA_FALLBACK = '<a href="' + "#" + '" data-wa-link>escríbenos por WhatsApp</a>';
+const ANSWERS = {
+  "Información de mi pedido": "Para revisar tu pedido necesitamos tu nombre y lo que compraste: {wa}",
+  "Catálogo de productos": 'Tenemos conjuntos waffle knit (desde $189 MXN) y hoodies (desde $300 MXN). <a href="#productos" data-close>Ver la colección</a>.',
+  "Métodos de pago": "Aceptamos transferencia SPEI y depósito a tarjeta de débito. Después manda tu comprobante por DM a @ascselo con tu nombre y pedido para confirmar.",
+  "Envíos y devoluciones": "Enviamos por paquetería a todo el país. Para costo, tiempos y cambios, {wa}",
+  "Tallas": "Manejamos tallas CH, G, L y XL. Los hoodies son oversized. Si dudas de tu talla, {wa}",
+  "Atención al cliente": "Con gusto te ayudamos: {wa}"
+};
+const QUICK = ["Información de mi pedido", "Catálogo de productos", "Métodos de pago", "Envíos y devoluciones", "Tallas"];
+const KEYWORDS = [
+  [/pag|transfer|depos|spei|tarjeta/i, "Métodos de pago"],
+  [/talla|medida|ch\b|xl/i, "Tallas"],
+  [/env[ií]|paquet|entrega|devol|cambio/i, "Envíos y devoluciones"],
+  [/pedido|compra|orden|guía|guia/i, "Información de mi pedido"],
+  [/cat[aá]logo|hoodie|sudadera|waffle|precio|cu[aá]nto|conjunto/i, "Catálogo de productos"]
+];
+function addMsg(html, who) {
+  const m = document.createElement("div");
+  m.className = "msg " + who;
+  if (who === "me") m.textContent = html; else m.innerHTML = html;
+  body.appendChild(m);
+  body.scrollTop = body.scrollHeight;
+  m.querySelectorAll("[data-wa-link]").forEach(a => { a.href = waLink("Hola ASCSELO, necesito ayuda."); a.target = "_blank"; a.rel = "noopener"; });
+  m.querySelectorAll("[data-close]").forEach(a => a.addEventListener("click", () => { chat.hidden = true; }));
+}
+function answer(topic) {
+  addMsg(ANSWERS[topic].replace("{wa}", WA_FALLBACK + "."), "bot");
+}
+function greet() {
+  addMsg("¡Hola! Bienvenido a ASCSELO.<br><br>Soy un asistente virtual automático y puedo cometer errores.<br><br>¿En qué te podemos ayudar hoy? Elige una opción o escríbeme lo que necesitas.", "bot");
+  const q = document.createElement("div");
+  q.className = "quick";
+  QUICK.forEach(t => {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = t;
+    b.addEventListener("click", () => { addMsg(t, "me"); answer(t); });
+    q.appendChild(b);
+  });
+  body.appendChild(q);
+}
+function openChat(topic) {
+  chat.hidden = false;
+  if (!body.children.length) greet();
+  if (topic && ANSWERS[topic]) { addMsg(topic, "me"); answer(topic); }
+}
+$("#chat-fab").addEventListener("click", () => openChat());
+$("#chat-close").addEventListener("click", () => { chat.hidden = true; });
+$("#chat-form").addEventListener("submit", e => {
+  e.preventDefault();
+  const input = $("#chat-input");
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = "";
+  addMsg(text, "me");
+  const hit = KEYWORDS.find(k => k[0].test(text));
+  if (hit) answer(hit[1]);
+  else addMsg("No estoy seguro de esa pregunta. Te atendemos directo: " + WA_FALLBACK + ".", "bot");
+});
